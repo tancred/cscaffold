@@ -149,7 +149,7 @@ class MakefileGenerator
   end
   
   def configure_for_objc(prog,source)
-    add_variable("CC","gcc")
+    add_variable("CC","clang")
     add_variable("CFLAGS","-Wall")
     add_variable("PROGS","#{prog}")
 
@@ -167,7 +167,7 @@ class MakefileGenerator
   end
 
   def configure_for_cplusplus(prog,source)
-    add_variable("CXX","g++")
+    add_variable("CXX","clang++")
     add_variable("CXXFLAGS","-Wall")
     add_variable("PROGS","#{prog}")
 
@@ -185,7 +185,7 @@ class MakefileGenerator
   end
 
   def configure_for_c(prog,source)
-    add_variable("CC","gcc")
+    add_variable("CC","clang")
     add_variable("CFLAGS","-Wall")
     add_variable("PROGS","#{prog}")
 
