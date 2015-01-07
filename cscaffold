@@ -8,9 +8,9 @@ $useobjc = false
 $lang = :lang_c
 
 opts = GetoptLong.new(
-        [ "--dont-do-it", "-n", GetoptLong::NO_ARGUMENT],
-        [ "--cplusplus", "-p", GetoptLong::NO_ARGUMENT],
-        [ "--objc", "-o", GetoptLong::NO_ARGUMENT]
+  [ "--dont-do-it", "-n", GetoptLong::NO_ARGUMENT],
+  [ "--cplusplus", "-p", GetoptLong::NO_ARGUMENT],
+  [ "--objc", "-o", GetoptLong::NO_ARGUMENT]
 ) 
 opts.each {|opt,arg|
   case opt
