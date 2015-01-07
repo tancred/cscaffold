@@ -1,0 +1,328 @@
+#!/usr/bin/env ruby
+
+require 'getoptlong'
+
+$dontdoit = false
+$usecplusplus = false
+$useobjc = false
+$lang = :lang_c
+
+opts = GetoptLong.new(
+        [ "--dont-do-it", "-n", GetoptLong::NO_ARGUMENT],
+        [ "--cplusplus", "-p", GetoptLong::NO_ARGUMENT],
+        [ "--objc", "-o", GetoptLong::NO_ARGUMENT]
+) 
+opts.each {|opt,arg|
+  case opt
+  when "--dont-do-it"
+    $dontdoit = true
+  when "--cplusplus"
+    $usecplusplus = true
+  when "--objc"
+    $useobjc = true
+  end
+}
+
+def usage
+  $stderr.puts "Usage: cscaffold [ -n ] dir"
+  $stderr.puts ""
+  $stderr.puts "  dir        the scaffold directory."
+  $stderr.puts "  -n         list what cscaffold will do, but don't do it."
+  $stderr.puts "  -p         generate template for c++ instead of c."
+  $stderr.puts "  -o         generate template for objc instead of c"
+  $stderr.puts "             (linking the Foundation framework)."
+end
+
+def help(msg=nil)
+  s = "Error:\n" + msg + "\n\n"
+  $stderr.puts(s) unless msg == nil
+  usage()
+end
+
+def die_help(msg)
+  help(msg)
+  exit(1)
+end
+
+die_help("You can't leave out required arguments.") if ARGV.length != 1
+die_help("You can't generate c++ _and_ objc.") if ($usecplusplus && $useobjc)
+$lang = :lang_cpp if $usecplusplus
+$lang = :lang_objc if $useobjc
+
+require 'pathname'
+
+$dir = Pathname.new(ARGV[0])
+
+
+def log(*args)
+  a = args.collect {|x| x.to_s }
+  $stderr.puts a.join(" ")
+end
+
+#
+# File commands
+#
+require 'fileutils'
+
+def mkdir(name,mask)
+  FileUtils.mkdir_p(name, {:mode => mask, :verbose => true, :noop => $dontdoit})
+end
+
+def chown(o,g,name)
+  uid = Etc.getpwnam(o).uid
+  gid = Etc.getgrnam(g).gid
+  log("chown",o,"("+uid.to_s+")",g,"("+gid.to_s+")",name)
+  return if $dontdoit
+
+  begin
+    File.chown(uid,gid,name)
+  rescue Errno::EPERM
+    $stderr.puts("  Error: unable to chmod")
+  end
+end
+
+def mkfile(name,mask)
+  log("new file", sprintf("(mode %o)", mask), name)
+  unless $dontdoit
+    File.open(name, File::CREAT|File::TRUNC|File::WRONLY, mask) {|file|
+      yield file
+    }
+  end
+end
+
+
+#
+# Here are all the files I'll touch
+#
+
+def dir_scaffold
+  $dir
+end
+
+def file_Makefile
+  dir_scaffold() + "Makefile"
+end
+
+def prog_name
+  dir_scaffold.to_s
+end
+
+def source_code_ext
+  ext = "txt"
+  case $lang
+  when :lang_c
+    ext = "c"
+  when :lang_cpp
+    ext = "cc"
+  when :lang_objc
+    ext = "m"
+  end
+  ext
+end
+
+def source_code_name
+  "#{prog_name}.#{source_code_ext()}"
+end
+
+def file_scaffold_source_code
+  dir_scaffold() + source_code_name()
+end
+
+#
+# Makefile generator helpers
+#
+
+class MakefileGenerator
+
+  def initialize
+    @variables = []
+    @targets = []
+  end
+
+  def add_variable(name,value)
+    @variables << { name => value }
+  end
+
+  def add_target(target,deps,instructions=[])
+    deps = [deps] unless deps.is_a? Array
+    @targets << { target => [ deps, instructions ]}
+  end
+  
+  def configure_for_objc(prog,source)
+    add_variable("CC","gcc")
+    add_variable("CFLAGS","-Wall")
+    add_variable("PROGS","#{prog}")
+
+    add_target("default", prog, ["./#{prog}"])
+
+    object = "#{prog}.o"
+    add_target(prog, [object], ["$(CC) -o $@ $^ -framework Foundation"])
+    add_target(object, [source])
+
+    wildcard_object = "%.o"
+    wildcard_source = "%.#{source_code_ext()}"
+    add_target(wildcard_object, [wildcard_source], ["$(CC) -c $(CFLAGS) $<"])
+
+    add_target("clean",[],["rm -f #{prog}", "rm -f *.o"])
+  end
+
+  def configure_for_cplusplus(prog,source)
+    add_variable("CXX","g++")
+    add_variable("CXXFLAGS","-Wall")
+    add_variable("PROGS","#{prog}")
+
+    add_target("default", prog, ["./#{prog}"])
+
+    object = "#{prog}.o"
+    add_target(prog, [object], ["$(CXX) -o $@ $^"])
+    add_target(object, [source])
+
+    wildcard_object = "%.o"
+    wildcard_source = "%.#{source_code_ext()}"
+    add_target(wildcard_object, [wildcard_source], ["$(CXX) -c $(CXXFLAGS) $<"])
+
+    add_target("clean",[],["rm -f #{prog}", "rm -f *.o"])
+  end
+
+  def configure_for_c(prog,source)
+    add_variable("CC","gcc")
+    add_variable("CFLAGS","-Wall")
+    add_variable("PROGS","#{prog}")
+
+    add_target("default", prog, ["./#{prog}"])
+
+    object = "#{prog}.o"
+    add_target(prog, [object], ["$(CC) -o $@ $^"])
+    add_target(object, [source])
+
+    wildcard_object = "%.o"
+    wildcard_source = "%.#{source_code_ext()}"
+    add_target(wildcard_object, [wildcard_source], ["$(CC) -c $(CFLAGS) $<"])
+
+    add_target("clean",[],["rm -f #{prog}", "rm -f *.o"])
+  end
+
+  def to_s
+    s = ""
+    
+    @variables.each do |x|
+      var = x.keys[0]
+      val = x[var]
+      s << "#{var} = #{val}\n"
+    end
+    
+    @targets.each do |x|
+      target = x.keys[0]
+      deps = x[target][0]
+      instrs = x[target][1]
+      s << "\n"
+      s << "#{target}:"
+      deps.each do |dep|
+        s << " #{dep}"
+      end
+      s << "\n"
+      instrs.each do |instr|
+        s << "\t#{instr}\n"
+      end
+    end
+    s
+  end
+  
+end
+
+#
+# And here are the actual actions.
+#
+
+def create_scaffold_dir
+  mkdir(dir_scaffold, 0755)
+end
+
+def create_scaffold_Makefile
+  gen = MakefileGenerator.new
+  case $lang
+  when :lang_c
+    gen.configure_for_c(prog_name,source_code_name())
+  when :lang_cpp
+    gen.configure_for_cplusplus(prog_name,source_code_name())
+  when :lang_objc
+    gen.configure_for_objc(prog_name,source_code_name())
+  end
+
+  mkfile(file_Makefile,0644) {|f|
+    break if f == nil
+    f.puts gen.to_s
+  }
+end
+
+class HelloWorldSourceCodeGenerator
+  def initialize(lang=:lang_c)
+    @lang = lang
+  end
+
+  def template_cplusplus
+    <<-XXX
+#include <iostream>
+using namespace std;
+
+int main() {
+	cout << "Hello world!\\n";
+}
+    XXX
+  end
+  
+  def template_c
+    <<-XXX
+#include <stdio.h>
+#include <stdlib.h>
+
+int main() {
+	printf("%s\\n", "Hello world!");
+	return 0;
+}
+    XXX
+  end
+
+  def template_objc
+    <<-XXX
+#import <Foundation/Foundation.h>
+
+int main() {
+  NSAutoreleasePool *pool = [NSAutoreleasePool new];
+	NSLog(@"%@\\n", @"Hello world!");
+	[pool release];
+	return 0;
+}
+    XXX
+  end
+  
+  def to_s
+    case @lang
+    when :lang_c
+      return template_c
+    when :lang_cpp
+      return template_cplusplus
+    when :lang_objc
+      return template_objc
+    end
+    return "empty template for unnamed language"
+  end
+end
+
+def create_scaffold_source_code_file
+  gen = HelloWorldSourceCodeGenerator.new($lang)
+  mkfile(file_scaffold_source_code,0644) {|f|
+    break if f == nil
+    f.puts(gen.to_s)
+  }
+end
+
+actions = [
+  :create_scaffold_dir,
+  :create_scaffold_Makefile,
+  :create_scaffold_source_code_file
+  ]
+
+actions.each {|action|
+  send(action)
+}
