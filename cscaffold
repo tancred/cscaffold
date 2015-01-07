@@ -153,7 +153,7 @@ class MakefileGenerator
     add_variable("CFLAGS","-Wall")
     add_variable("PROGS","#{prog}")
 
-    add_target("default", prog, ["./#{prog}"])
+    add_target("default", "$(PROGS)", ["./#{prog}"])
 
     object = "#{prog}.o"
     add_target(prog, [object], ["$(CC) -o $@ $^ -framework Foundation"])
@@ -163,7 +163,7 @@ class MakefileGenerator
     wildcard_source = "%.#{source_code_ext()}"
     add_target(wildcard_object, [wildcard_source], ["$(CC) -c $(CFLAGS) $<"])
 
-    add_target("clean",[],["rm -f #{prog}", "rm -f *.o"])
+    add_target("clean",[],["rm -f $(PROGS)", "rm -f *.o"])
   end
 
   def configure_for_cplusplus(prog,source)
@@ -171,7 +171,7 @@ class MakefileGenerator
     add_variable("CXXFLAGS","-Wall")
     add_variable("PROGS","#{prog}")
 
-    add_target("default", prog, ["./#{prog}"])
+    add_target("default", "$(PROGS)", ["./#{prog}"])
 
     object = "#{prog}.o"
     add_target(prog, [object], ["$(CXX) -o $@ $^"])
@@ -181,7 +181,7 @@ class MakefileGenerator
     wildcard_source = "%.#{source_code_ext()}"
     add_target(wildcard_object, [wildcard_source], ["$(CXX) -c $(CXXFLAGS) $<"])
 
-    add_target("clean",[],["rm -f #{prog}", "rm -f *.o"])
+    add_target("clean",[],["rm -f $(PROGS)", "rm -f *.o"])
   end
 
   def configure_for_c(prog,source)
@@ -189,7 +189,7 @@ class MakefileGenerator
     add_variable("CFLAGS","-Wall")
     add_variable("PROGS","#{prog}")
 
-    add_target("default", prog, ["./#{prog}"])
+    add_target("default", "$(PROGS)", ["./#{prog}"])
 
     object = "#{prog}.o"
     add_target(prog, [object], ["$(CC) -o $@ $^"])
@@ -199,7 +199,7 @@ class MakefileGenerator
     wildcard_source = "%.#{source_code_ext()}"
     add_target(wildcard_object, [wildcard_source], ["$(CC) -c $(CFLAGS) $<"])
 
-    add_target("clean",[],["rm -f #{prog}", "rm -f *.o"])
+    add_target("clean",[],["rm -f $(PROGS)", "rm -f *.o"])
   end
 
   def to_s
