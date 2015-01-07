@@ -266,7 +266,7 @@ class HelloWorldSourceCodeGenerator
 using namespace std;
 
 int main() {
-	cout << "Hello world!\\n";
+  cout << "Hello world!\\n";
 }
     XXX
   end
@@ -277,8 +277,8 @@ int main() {
 #include <stdlib.h>
 
 int main() {
-	printf("%s\\n", "Hello world!");
-	return 0;
+  printf("%s\\n", "Hello world!");
+  return 0;
 }
     XXX
   end
@@ -289,9 +289,9 @@ int main() {
 
 int main() {
   NSAutoreleasePool *pool = [NSAutoreleasePool new];
-	NSLog(@"%@\\n", @"Hello world!");
-	[pool release];
-	return 0;
+  NSLog(@"%@\\n", @"Hello world!");
+  [pool release];
+  return 0;
 }
     XXX
   end
