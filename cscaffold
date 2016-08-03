@@ -51,8 +51,9 @@ $lang = :lang_objc if $useobjc
 
 require 'pathname'
 
-$dir = Pathname.new(ARGV[0])
-
+$dir = Pathname.new(ARGV[0]).cleanpath()
+$prog_name = $dir.basename().to_s
+die_help("You must not use ., .. or / as scaffold directory") if ['.', '..', '/'].include? $prog_name
 
 def log(*args)
   a = args.collect {|x| x.to_s }
@@ -104,7 +105,7 @@ def file_Makefile
 end
 
 def prog_name
-  dir_scaffold.to_s
+  $prog_name
 end
 
 def source_code_ext
